@@ -234,7 +234,7 @@ function showResult() {
     let mealHtml="";
     meals.forEach((m,i)=>{
         let kcal = m.P*4 + m.C*4 + m.F*9;
-        mealHtml+=`<li>มื้อ ${i+1}: P=${m.P}g, C=${m.C}g, F=${m.F}g = ${kcal} kcal 
+        mealHtml+=`<li> ${i+1}: P=${m.P}g, C=${m.C}g, F=${m.F}g = ${kcal} kcal 
         <span>
         <button onclick="editMeal(${i})">แก้ไข</button>
         <button onclick="deleteMeal(${i})">ลบ</button>
