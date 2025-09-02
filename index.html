@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คำนวณแคลสารอาหาร</title>
+<style>
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: #f8fafc;
+  padding: 20px;
+  max-width: 480px;
+  margin: auto;
+  color: #222;
+}
+h2, h3 {
+  color: #2d6a4f;
+  margin-bottom: 10px;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.04);
+  padding: 18px 15px 15px 15px;
+  margin: 18px 0;
+  border-radius: 12px;
+  transition: box-shadow 0.2s;
+}
+.card:hover {
+  box-shadow: 0 4px 16px rgba(44, 62, 80, 0.08);
+}
+input[type="number"], input[type="date"], input[type="text"] {
+  width: 100%;
+  max-width: 180px;
+  padding: 7px 10px;
+  margin: 5px 0 10px 0;
+  border: 1px solid #b7e4c7;
+  border-radius: 6px;
+  font-size: 1em;
+  background: #f1faee;
+  box-sizing: border-box;
+  transition: border 0.2s;
+}
+input[type="number"]:focus, input[type="date"]:focus, input[type="text"]:focus {
+  border: 1.5px solid #40916c;
+  outline: none;
+}
+button {
+  background: #40916c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 1em;
+  cursor: pointer;
+  margin: 5px 0 0 0;
+  transition: background 0.2s;
+  box-shadow: 0 1px 2px rgba(44, 62, 80, 0.04);
+}
+button:hover, button:focus {
+  background: #2d6a4f;
+}
+.meal-list {
+  margin-top: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+.meal-list li {
+  margin-bottom: 7px;
+  background: #e9f5ec;
+  border-radius: 6px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.98em;
+}
+.meal-list button {
+  background: #b7e4c7;
+  color: #222;
+  font-size: 0.95em;
+  padding: 4px 10px;
+  margin-left: 5px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+.meal-list button:hover {
+  background: #95d5b2;
+  color: #222;
+}
+.closed {
+  background: #eee;
+  color: #999;
+}
+#result b {
+  color: #1b4332;
+}
+@media (max-width: 600px) {
+  body { padding: 5px; }
+  .card { padding: 10px 5px; }
+  input[type="number"], input[type="date"] { max-width: 100%; }
+  button { width: 100%; }
+  .meal-list li { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<h2>คำนวณแคลสารอาหาร (P / C / F)</h2>
+
+<div class="card">
+  <h3>เลือกวันที่</h3>
+  <input type="date" id="selectedDate" onchange="loadDayData()">
+  <button onclick="endOfDay()">End of the Day</button>
+</div>
+
+<div class="card">
+  <h3>ค่าเป้าหมายต่อวัน</h3>
+  <label>โปรตีน (g): <input type="number" id="targetP" placeholder="โปรตีน"></label><br>
+  <label>คาร์บ (g): <input type="number" id="targetC" placeholder="คาร์บ"></label><br>
+  <label>ไขมัน (g): <input type="number" id="targetF" placeholder="ไขมัน"></label><br>
+  <button onclick="setTarget()">ตั้งค่าเป้าหมาย</button>
+</div>
+
+<div class="card">
+  <h3>เพิ่มมื้ออาหาร</h3>
+  <label>โปรตีน (g): <input type="number" id="mealP" placeholder="โปรตีน"></label> <br>
+  <label>คาร์บ (g): <input type="number" id="mealC" placeholder="คาร์บ"></label> <br>
+  <label>ไขมัน (g): <input type="number" id="mealF" placeholder="ไขมัน"></label> <br>
+  <button onclick="addMeal()">เพิ่ม</button>
+</div>
+
+<div class="card">
+  <h3>ค้นหาข้อมูลสารอาหาร</h3>
+  <input type="text" id="foodSearch" placeholder="เช่น อกไก่ สันในไก่ สันในหมู" style="width:70%;">
+  <input type="number" id="foodAmount" placeholder="จำนวน" min="1" value="100" style="width:25%;display:inline-block;">
+  <span id="foodUnit" style="font-size:0.95em;color:#888;"></span>
+  <button onclick="searchFood()">ค้นหา</button>
+  <button onclick="addFoodToMeal()" style="background:#52b788;margin-left:5px;">เพิ่มเข้ามื้ออาหาร</button>
+  <div id="foodInfo" style="margin-top:10px;font-size:0.98em;"></div>
+</div>
+
+<div class="card">
+  <h3>ผลลัพธ์</h3>
+  <p id="result"></p>
+  <ul class="meal-list" id="mealList"></ul>
+</div>
+
+<script>
+let dayData = {};
+if(localStorage.getItem("calorieData")) dayData = JSON.parse(localStorage.getItem("calorieData"));
+document.getElementById("selectedDate").value = new Date().toISOString().split("T")[0];
+loadDayData();
+
+function getCurrentDate() { return document.getElementById("selectedDate").value; }
+
+function setTarget() {
+    let date = getCurrentDate();
+    if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+    dayData[date].target.P=parseInt(document.getElementById("targetP").value)||0;
+    dayData[date].target.C=parseInt(document.getElementById("targetC").value)||0;
+    dayData[date].target.F=parseInt(document.getElementById("targetF").value)||0;
+    saveData(); showResult();
+}
+
+function addMeal() {
+    let date = getCurrentDate();
+    if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+    let p=parseInt(document.getElementById("mealP").value)||0;
+    let c=parseInt(document.getElementById("mealC").value)||0;
+    let f=parseInt(document.getElementById("mealF").value)||0;
+    dayData[date].meals.push({P:p,C:c,F:f});
+    saveData(); showResult();
+    // รีเซ็ตช่องกรอกให้ว่าง
+    document.getElementById("mealP").value="";
+    document.getElementById("mealC").value="";
+    document.getElementById("mealF").value="";
+}
+
+function editMeal(index){
+    let date = getCurrentDate();
+    let meal = dayData[date].meals[index];
+    let newP = prompt("โปรตีน (g)", meal.P);
+    let newC = prompt("คาร์บ (g)", meal.C);
+    let newF = prompt("ไขมัน (g)", meal.F);
+    if(newP!==null && newC!==null && newF!==null){
+        dayData[date].meals[index]={P:parseInt(newP), C:parseInt(newC), F:parseInt(newF)};
+        saveData(); showResult();
+    }
+}
+
+function deleteMeal(index){
+    let date = getCurrentDate();
+    if(confirm("ลบมื้อ "+(index+1)+" ใช่หรือไม่?")){
+        dayData[date].meals.splice(index,1);
+        saveData(); showResult();
+    }
+}
+
+function endOfDay() {
+    let date = getCurrentDate();
+    if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+    dayData[date].closed=true;
+    saveData();
+    alert("สรุปวัน "+date+" เรียบร้อย สามารถเริ่มวันใหม่ได้");
+    showResult();
+}
+
+function showResult() {
+    let date = getCurrentDate();
+    if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+    let target = dayData[date].target;
+    let meals = dayData[date].meals;
+    let closed = dayData[date].closed;
+
+    let totalP=meals.reduce((sum,m)=>sum+m.P,0);
+    let totalC=meals.reduce((sum,m)=>sum+m.C,0);
+    let totalF=meals.reduce((sum,m)=>sum+m.F,0);
+    let kcalTotal=totalP*4+totalC*4+totalF*9;
+    let kcalTarget=target.P*4+target.C*4+target.F*9;
+
+    document.getElementById("result").innerHTML=`
+<b>รวมที่กินไป:</b> P:${totalP}g, C:${totalC}g, F:${totalF}g = ${kcalTotal} kcal<br>
+<b>เป้าหมาย:</b> P:${target.P}g, C:${target.C}g, F:${target.F}g = ${kcalTarget} kcal<br>
+<span style="display:inline-block;background:#d8f3dc;color:#081c15;padding:7px 12px;border-radius:8px;font-weight:bold;margin:7px 0;">
+  <b>เหลือ:</b> 
+  <span style="color:#40916c;">P:${target.P-totalP}g</span>, 
+  <span style="color:#0077b6;">C:${target.C-totalC}g</span>, 
+  <span style="color:#f77f00;">F:${target.F-totalF}g</span> = 
+  <span style="color:#e85d04;">${kcalTarget-kcalTotal} kcal</span>
+</span>
+<br><b>สถานะ:</b> ${closed ? "ปิดแล้ว" : "กำลังบันทึก"}<br>
+`;
+
+    let mealHtml="";
+    meals.forEach((m,i)=>{
+        let kcal = m.P*4 + m.C*4 + m.F*9;
+        mealHtml+=`<li>มื้อ ${i+1}: P=${m.P}g, C=${m.C}g, F=${m.F}g = ${kcal} kcal 
+        <span>
+        <button onclick="editMeal(${i})">แก้ไข</button>
+        <button onclick="deleteMeal(${i})">ลบ</button>
+        </span>
+        </li>`;
+    });
+    document.getElementById("mealList").innerHTML=mealHtml;
+
+    document.getElementById("targetP").disabled=closed;
+    document.getElementById("targetC").disabled=closed;
+    document.getElementById("targetF").disabled=closed;
+}
+    
+
+function saveData(){ localStorage.setItem("calorieData",JSON.stringify(dayData)); }
+
+function loadDayData(){
+    let date = getCurrentDate();
+    if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+    document.getElementById("targetP").value="";
+    document.getElementById("targetC").value="";
+    document.getElementById("targetF").value="";
+    showResult();
+}
+
+const foodDB = {
+  "อกไก่": { P: 31, C: 0, F: 3.6, kcal: 150, unit: "100g" },
+  "สันในไก่": { P: 22, C: 0, F: 1, kcal: 105, unit: "100g" },
+  "สันในหมู": { P: 21, C: 0, F: 2, kcal: 110, unit: "100g" },
+  "ข้าวขาว": { P: 2.4, C: 30, F: 0.3, kcal: 130, unit: "100g" },
+  "นํ้ามัน": { P: 0, C: 0, F: 14, kcal: 126, unit: "1 ช้อนโต๊ะ" },
+  "กล้วย": { P: 1.1, C: 23, F: 0.3, kcal: 120, unit: "100g" },
+  "ไข่": { P: 6, C: 0, F: 5, kcal: 70, unit: "1 ฟอง" },
+  "ข้าวโอ๊ต": { P: 13, C: 66, F: 7, kcal: 389, unit: "100g" },
+  "นมวัว": { P: 3.4, C: 5, F: 4, kcal: 60, unit: "100ml" },
+  "เมล็ดมะมวงหิมพานต์": { P: 6, C: 8, F: 14, kcal: 180, unit: "30g" },
+  "ถั่วลิสง": { P: 7, C: 5, F: 14, kcal: 180, unit: "30g" }
+};
+
+let lastSearchedFood = null;
+
+function searchFood() {
+  const q = document.getElementById("foodSearch").value.trim();
+  const infoDiv = document.getElementById("foodInfo");
+  const amountInput = document.getElementById("foodAmount");
+  const unitSpan = document.getElementById("foodUnit");
+  if (!q) {
+    infoDiv.innerHTML = "";
+    unitSpan.textContent = "";
+    lastSearchedFood = null;
+    return;
+  }
+  let found = null;
+  for (const key in foodDB) {
+    if (key.includes(q)) {
+      found = foodDB[key];
+      lastSearchedFood = { ...found, name: key };
+      unitSpan.textContent = found.unit ? `(${found.unit})` : "";
+      // คำนวณตามจำนวนที่กรอก
+      let amount = parseFloat(amountInput.value) || 100;
+      let ratio = amount / parseFloat(found.unit.match(/\d+/)?.[0] || 100);
+      let p = (found.P * ratio).toFixed(2);
+      let c = (found.C * ratio).toFixed(2);
+      let f = (found.F * ratio).toFixed(2);
+      let kcal = (found.kcal * ratio).toFixed(2);
+      infoDiv.innerHTML = `<b>${key}</b> (${found.unit})<br>
+        <span>จำนวน: <b>${amount}</b> ${found.unit.replace(/[0-9]/g, '').trim()}</span><br>
+        โปรตีน: <span style="color:#40916c;">${p}g</span>,
+        คาร์บ: <span style="color:#0077b6;">${c}g</span>,
+        ไขมัน: <span style="color:#f77f00;">${f}g</span>,
+        พลังงาน: <span style="color:#e85d04;">${kcal} kcal</span>`;
+      return;
+    }
+  }
+  infoDiv.innerHTML = "ไม่พบข้อมูลอาหารนี้";
+  unitSpan.textContent = "";
+  lastSearchedFood = null;
+}
+
+document.getElementById("foodAmount").addEventListener("input", searchFood);
+document.getElementById("foodSearch").addEventListener("input", function() {
+  document.getElementById("foodAmount").value = 100; // reset amount to 100 เมื่อเปลี่ยนชื่ออาหาร
+  searchFood();
+});
+
+function addFoodToMeal() {
+  if (!lastSearchedFood) {
+    alert("กรุณาค้นหาอาหารก่อน");
+    return;
+  }
+  let amount = parseFloat(document.getElementById("foodAmount").value) || 100;
+  let baseAmount = parseFloat(lastSearchedFood.unit.match(/\d+/)?.[0] || 100);
+  let ratio = amount / baseAmount;
+  let p = Math.round(lastSearchedFood.P * ratio);
+  let c = Math.round(lastSearchedFood.C * ratio);
+  let f = Math.round(lastSearchedFood.F * ratio);
+  // เพิ่มเข้า meals
+  let date = getCurrentDate();
+  if(!dayData[date]) dayData[date]={target:{P:0,C:0,F:0}, meals:[], closed:false};
+  dayData[date].meals.push({P:p, C:c, F:f});
+  saveData(); showResult();
+  // รีเซ็ตช่องค้นหา
+  document.getElementById("foodSearch").value = "";
+  document.getElementById("foodAmount").value = 100;
+  document.getElementById("foodInfo").innerHTML = "";
+  document.getElementById("foodUnit").textContent = "";
+  lastSearchedFood = null;
+}
+</script>
+</body>
+</html>
